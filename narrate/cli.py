@@ -628,6 +628,10 @@ def main():
     parser.add_argument("--output", "-o", default=REF_DIR)
     parser.add_argument("--skip-quality", action="store_true")
     parser.add_argument("--print", dest="print_output", action="store_true")
+    parser.add_argument("--json-only", action="store_true",
+                        help="Stop after ANALYZE step, output structured JSON. "
+                             "Use this when the AI in your coding tool (opencode, Claude Code) "
+                             "will write the changelog itself.")
 
     args = parser.parse_args()
     if "/" not in args.repo:
@@ -650,6 +654,11 @@ def main():
     analyzer_output = step_analyze(collector_output, owner, repo_name)
     write_json(os.path.join(output_dir, "analyzer_output.json"), analyzer_output)
     eprint(f"  {analyzer_output['summary']['totalCommits']} commits, {len(analyzer_output['closedIssues'])} closed, {len(analyzer_output['openIssues'])} open")
+
+    if args.json_only:
+        json.dump(analyzer_output, sys.stdout, indent=2, ensure_ascii=False)
+        eprint("  [json-only mode] Raw data written to stdout. Skipping WRITER/FORMATTER/QUALITY.")
+        return
 
     eprint("[4/6] WRITER")
     writer_output = step_write(analyzer_output, args.template, deepseek_key)

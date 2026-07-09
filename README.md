@@ -70,7 +70,7 @@ python -m narrate --help
 
 ```
 usage: narrate [-h] --from FROM_REF --to TO_REF [--template {community,technical,marketing}]
-               [--output OUTPUT] [--skip-quality] [--print]
+               [--output OUTPUT] [--skip-quality] [--print] [--json-only]
 
 positional arguments:
   repo                  owner/name (e.g., ohmyzsh/ohmyzsh)
@@ -82,6 +82,7 @@ options:
   --output, -o          output directory (default: references/)
   --skip-quality        skip quality validation
   --print               print markdown to stdout
+  --json-only           stop at ANALYZE, output JSON for your coding tool's AI to write the changelog
 ```
 
 ### Environment variables
@@ -99,6 +100,17 @@ PARSE_INPUT  →  COLLECT_DATA  →  ANALYZE  →  WRITER  →  FORMATTER  →  
 ```
 
 Each step writes its output to the references directory, so you can inspect or resume from any stage.
+
+## Use in opencode / Claude Code
+
+When your coding tool already has AI (opencode, Claude Code, Cursor, etc.):
+let narrate handle the mechanical part (GitHub data), then let your tool's AI write the changelog.
+
+```bash
+narrate ohmyzsh/ohmyzsh --from HEAD~4 --to HEAD --json-only
+```
+
+Outputs structured JSON (commits, issues, stats) to stdout — ready for your AI to turn into prose. Zero external API keys needed.
 
 ## Roadmap
 
