@@ -3,7 +3,7 @@
 **One-command release notes from git history.**
 
 ```
-pip install narrate
+pip install changelog-narrate
 narrate ohmyzsh/ohmyzsh --from v1.0 --to v2.0
 ```
 
@@ -53,7 +53,7 @@ All intermediate JSON artifacts are written to `references/` for inspection and 
 ## Installation
 
 ```bash
-pip install narrate
+pip install changelog-narrate
 ```
 
 Python 3.10+ required. No external dependencies (stdlib only).
@@ -61,9 +61,9 @@ Python 3.10+ required. No external dependencies (stdlib only).
 Or run directly from source:
 
 ```bash
-git clone https://github.com/1knownothing/narrate.git
-cd narrate
-python narrate --help
+git clone https://github.com/1knownothing/changelog-narrate.git
+cd changelog-narrate
+python -m narrate --help
 ```
 
 ## Options
