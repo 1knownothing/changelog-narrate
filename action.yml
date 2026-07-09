@@ -41,10 +41,23 @@ runs:
         [ -z "$TO" ] && TO="${GITHUB_REF_NAME:-HEAD}"
 
         if [ -z "$FROM" ]; then
-          # Find second-latest tag (the one before the current release)
+          # Try the tag before the current one
           PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
-          FROM="${PREV_TAG:-HEAD~10}"
-          echo "  from: $FROM (auto-detected)"
+          if [ -n "$PREV_TAG" ]; then
+            # Make sure they aren't the same commit (first release edge case)
+            TO_SHA=$(git rev-parse "$TO" 2>/dev/null)
+            PREV_SHA=$(git rev-parse "$PREV_TAG" 2>/dev/null)
+            if [ "$TO_SHA" = "$PREV_SHA" ] || [ "$PREV_TAG" = "$TO" ]; then
+              FROM="HEAD~10"
+              echo "  from: HEAD~10 (prev tag $PREV_TAG same commit as $TO)"
+            else
+              FROM="$PREV_TAG"
+              echo "  from: $PREV_TAG (auto-detected)"
+            fi
+          else
+            FROM="HEAD~10"
+            echo "  from: HEAD~10 (no previous tag)"
+          fi
         fi
 
         echo "from=$FROM" >> "$GITHUB_OUTPUT"
