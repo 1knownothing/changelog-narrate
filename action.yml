@@ -1,0 +1,92 @@
+name: 'Changelog Narrate'
+description: 'Generate release notes from git history and post them to GitHub Releases'
+author: '1knownothing'
+branding:
+  icon: 'book-open'
+  color: 'blue'
+inputs:
+  token:
+    description: 'GitHub token with write access to releases'
+    required: true
+    default: ${{ github.token }}
+  template:
+    description: 'Template style: community, technical, marketing'
+    required: false
+    default: 'community'
+  from-ref:
+    description: 'Base git ref (previous tag, commit SHA). Auto-detected from the second-latest tag if empty.'
+    required: false
+    default: ''
+  to-ref:
+    description: 'Target git ref (release tag, commit SHA). Uses GITHUB_REF_NAME if empty.'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - run: pip install changelog-narrate
+      shell: bash
+
+    - name: Resolve git refs
+      id: refs
+      shell: bash
+      run: |
+        TO="${{ inputs.to-ref }}"
+        FROM="${{ inputs.from-ref }}"
+
+        [ -z "$TO" ] && TO="${GITHUB_REF_NAME:-HEAD}"
+
+        if [ -z "$FROM" ]; then
+          # Find second-latest tag (the one before the current release)
+          PREV_TAG=$(git tag --sort=-creatordate | head -2 | tail -1 || echo "")
+          FROM="${PREV_TAG:-HEAD~10}"
+          echo "  from: $FROM (auto-detected)"
+        fi
+
+        echo "from=$FROM" >> "$GITHUB_OUTPUT"
+        echo "to=$TO" >> "$GITHUB_OUTPUT"
+        echo "  to: $TO"
+
+    - name: Generate release notes
+      shell: bash
+      run: |
+        echo "  running: narrate ${{ github.repository }} --from ${{ steps.refs.outputs.from }} --to ${{ steps.refs.outputs.to }} --template ${{ inputs.template }}"
+        narrate "${{ github.repository }}" \
+          --from "${{ steps.refs.outputs.from }}" \
+          --to "${{ steps.refs.outputs.to }}" \
+          --template "${{ inputs.template }}" \
+          --print > "${{ runner.temp }}/release-notes.md"
+
+    - name: Post to GitHub Release
+      shell: bash
+      run: |
+        NOTES_FILE="${{ runner.temp }}/release-notes.md"
+        TAG="${{ steps.refs.outputs.to }}"
+
+        if [ ! -s "$NOTES_FILE" ]; then
+          echo "::warning::Release notes file is empty. Skipping."
+          exit 0
+        fi
+
+        echo "  posting to release: $TAG"
+
+        if gh release view "$TAG" --repo "${{ github.repository }}" &>/dev/null 2>&1; then
+          gh release edit "$TAG" \
+            --repo "${{ github.repository }}" \
+            --notes-file "$NOTES_FILE"
+          echo "✓ Updated existing release: $TAG"
+        else
+          gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
+            --notes-file "$NOTES_FILE" \
+            --verify-tag
+          echo "✓ Created new release: $TAG"
+        fi
+
+        echo "::notice::Release notes generated and posted to $TAG"
+      env:
+        GH_TOKEN: ${{ inputs.token }}

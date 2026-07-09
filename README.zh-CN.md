@@ -213,11 +213,46 @@ narrate owner/repo --from v1.0 --to v2.0 --print > release.md
 gh release create v2.0 --notes-file release.md
 ```
 
+## GitHub Action
+
+发布 Release 时自动生成发布说明。可在 [Actions Marketplace](https://github.com/marketplace/actions/changelog-narrate) 找到。
+
+### 用法
+
+```yaml
+# .github/workflows/release-notes.yml
+on:
+  release:
+    types: [published]
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: 1knownothing/changelog-narrate@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+之后在 GitHub 创建 Release → 发布说明自动生成并写入。
+
+### Action 输入
+
+| 输入 | 默认值 | 说明 |
+|------|--------|------|
+| `token` | `github.token` | 具备 release 写入权限的 token |
+| `template` | `community` | 模板风格 |
+| `from-ref` | 自动检测 | 上一个 tag 或 commit SHA |
+| `to-ref` | `GITHUB_REF_NAME` | 发布 tag 或 commit SHA |
+
 ## 路线图
 
 - [x] PyPI 发布
-- [ ] GitHub Action — tag 推送时自动生成发布说明
-- [ ] 写回 GitHub Release body
+- [x] GitHub Action — 发布 Release 时自动生成发布说明
 - [ ] 多仓库支持
 
 ## 为什么用 narrate？

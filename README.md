@@ -212,11 +212,46 @@ narrate owner/repo --from v1.0 --to v2.0 --print > release.md
 gh release create v2.0 --notes-file release.md
 ```
 
+## GitHub Action
+
+Auto-generate release notes when you publish a release. See it in the [Actions Marketplace](https://github.com/marketplace/actions/changelog-narrate).
+
+### Usage
+
+```yaml
+# .github/workflows/release-notes.yml
+on:
+  release:
+    types: [published]
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: 1knownothing/changelog-narrate@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Then create a release on GitHub → release notes are generated and posted automatically.
+
+### Action inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `token` | `github.token` | Token with release write access |
+| `template` | `community` | Template style |
+| `from-ref` | auto-detected | Previous tag or commit SHA |
+| `to-ref` | `GITHUB_REF_NAME` | Release tag or commit SHA |
+
 ## Roadmap
 
 - [x] PyPI release
-- [ ] GitHub Action — auto-generate release notes on tag push
-- [ ] Write-back to GitHub Release body
+- [x] GitHub Action — auto-generate release notes on release publish
 - [ ] Multi-repo support
 
 ## Why narrate?
