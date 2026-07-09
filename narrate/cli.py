@@ -383,7 +383,7 @@ def _template_writer(summary, commits, highlights_data, open_issues, repo_short,
     }
 
 
-def _ai_writer(analyzer_output, template, api_key):
+def _ai_writer(analyzer_output, template, api_key, model="deepseek-chat", endpoint="https://api.deepseek.com/v1/chat/completions"):
     summary = analyzer_output["summary"]
     commits = analyzer_output["commits"]
     open_issues = analyzer_output["openIssues"]
@@ -445,7 +445,7 @@ Output JSON format:
 Return ONLY valid JSON inside a ```json code block."""
 
     payload = json.dumps({
-        "model": "deepseek-chat",
+        "model": model,
         "messages": [
             {"role": "system", "content": f"You are a world-class Developer Relations engineer. Style: {template}."},
             {"role": "user", "content": prompt},
@@ -455,12 +455,12 @@ Return ONLY valid JSON inside a ```json code block."""
     }).encode("utf-8")
 
     req = urllib.request.Request(
-        "https://api.deepseek.com/v1/chat/completions",
+        endpoint,
         data=payload,
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
     )
 
-    eprint("  [4] Calling DeepSeek API...")
+    eprint(f"  [4] Calling AI API ({model})...")
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -480,7 +480,7 @@ Return ONLY valid JSON inside a ```json code block."""
         return None
 
 
-def step_write(analyzer_output, template, deepseek_key):
+def step_write(analyzer_output, template, api_key, model="deepseek-chat", endpoint="https://api.deepseek.com/v1/chat/completions"):
     summary = analyzer_output["summary"]
     commits = analyzer_output["commits"]
     highlights_data = analyzer_output["communityHighlights"]
@@ -489,8 +489,8 @@ def step_write(analyzer_output, template, deepseek_key):
     repo_short = analyzer_output["repo"].split("/")[1]
 
     writer_output = None
-    if deepseek_key:
-        writer_output = _ai_writer(analyzer_output, template, deepseek_key)
+    if api_key:
+        writer_output = _ai_writer(analyzer_output, template, api_key, model, endpoint)
 
     if not writer_output:
         writer_output = _template_writer(summary, commits, highlights_data, open_issues, repo_short, template)
@@ -630,8 +630,15 @@ def main():
     parser.add_argument("--print", dest="print_output", action="store_true")
     parser.add_argument("--json-only", action="store_true",
                         help="Stop after ANALYZE step, output structured JSON. "
-                             "Use this when the AI in your coding tool (opencode, Claude Code) "
-                             "will write the changelog itself.")
+                             "Use this when the AI in your coding tool will write the changelog itself.")
+    parser.add_argument("--ai-model", default="deepseek-chat",
+                        help="AI model name (default: deepseek-chat). "
+                             "Used only when AI_API_KEY or DEEPSEEK_API_KEY is set.")
+    parser.add_argument("--ai-endpoint", default="https://api.deepseek.com/v1/chat/completions",
+                        help="AI API endpoint (OpenAI-compatible). "
+                             "Default: https://api.deepseek.com/v1/chat/completions. "
+                             "Use https://api.openai.com/v1/chat/completions for OpenAI, "
+                             "or http://localhost:11434/v1/chat/completions for local Ollama.")
 
     args = parser.parse_args()
     if "/" not in args.repo:
@@ -639,7 +646,7 @@ def main():
     owner, repo_name = args.repo.split("/", 1)
 
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+    api_key = os.environ.get("AI_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
     output_dir = os.path.abspath(args.output)
 
     eprint(f"== {owner}/{repo_name}  {args.from_ref} -> {args.to_ref}  [{args.template}] ==")
@@ -661,7 +668,7 @@ def main():
         return
 
     eprint("[4/6] WRITER")
-    writer_output = step_write(analyzer_output, args.template, deepseek_key)
+    writer_output = step_write(analyzer_output, args.template, api_key, args.ai_model, args.ai_endpoint)
     write_json(os.path.join(output_dir, "writer_output.json"), writer_output)
     eprint(f"  {len(writer_output['communityHighlights'])} highlights, {len(writer_output['categories'])} categories, {len(writer_output['roadmap'])} roadmap")
 
